@@ -1,244 +1,351 @@
-# Amazon ECS Lab - Detailed README
+# Amazon ECS Lab
 
-## 📘 Overview
-
-This README provides a complete and structured explanation of the **Amazon Elastic Container Service (ECS) Lab** you completed. It consolidates the entire lab workflow, important concepts, and key steps into a clear, detailed, and ready-to-use document.
-
-This document covers:
-
-* What ECS is
-* What you configured in the lab
-* Step-by-step breakdown of tasks
-* Architecture overview
-* Important concepts and terminology
-* Final outcomes of the lab
+This README is a **fully detailed**, structured, and beginner-friendly explanation of the complete Amazon ECS Lab you performed. It includes **all code**, explanations, architecture, and steps from start to finish.
 
 ---
 
-# 🟦 1. Introduction
+# 📘 1. Introduction
 
-Your company has a partially configured **Amazon ECS cluster** in a test environment. You are tasked with learning ECS by completing the remaining configuration.
+In this lab, your company has a **partially configured ECS cluster**, and your goal is to learn Amazon ECS by completing the missing pieces.
 
-In this lab, you learned how to:
+You will configure:
 
-* Create **Task Definitions**
-* Create an **ECS Cluster**
-* Create and deploy an **ECS Service**
-* Deploy an **updated application version**
-* **Scale** a running ECS service
-
-Before beginning, you should understand:
-
-* Docker basics
-* Web applications
-* Load balancers
-* Basic DevOps concepts
+* **Task Definition** → describes the containers
+* **Cluster** → group of EC2 instances running ECS agent
+* **Service** → runs & maintains your containers continuously
 
 ---
 
-# 🟦 2. Lab Objectives
+# 🎯 2. Lab Objectives
 
-By the end of the lab, you will be able to:
+By the end of this lab, you will:
 
-✔ Create an ECS **Task Definition**
-✔ Deploy an application to an **ECS Service**
-✔ Deploy an updated version using a **new task definition revision**
-✔ Scale up your ECS service **capacity**
+* ✔ Create an **ECS Task Definition**
+* ✔ Deploy an application to an **ECS Service**
+* ✔ Update the application by creating a **new task definition revision**
+* ✔ Scale up the application using **service scaling**
 
 ---
 
-# 🟦 3. Lab Environment
+# 🧠 3. Prerequisites
 
-The lab environment provides pre-configured AWS resources:
+You should know:
 
-### Pre-Provisioned Resources
+* Basics of **Docker containers**
+* Basic **DevOps** terms
+* Understanding of **web applications**, **TCP ports**, **load balancers**
 
-* **VPC** with two public subnets
-* **Network Load Balancer (NLB)**
-* **EC2 Auto Scaling Group** for ECS launch type
-* **Partially configured ECS Cluster**
+---
 
-### Traffic Flow Architecture
+# 🏗 4. Lab Environment Overview
+
+AWS pre-provisioned the following resources:
+
+### ✔ VPC with 2 public subnets
+
+### ✔ Network Load Balancer
+
+### ✔ Auto Scaling Group (launching ECS-ready EC2 instances)
+
+### ✔ ECS Cluster (partial)
+
+### 🖥 Architecture Flow
 
 ```
-User → Internet Gateway → Network Load Balancer → ECS Cluster → EC2 Container Instances
+User → Internet Gateway → Network Load Balancer → ECS Cluster → EC2 Instances → Containers
 ```
+
+These components allow you to deploy containers using the **EC2 launch type**.
 
 ---
 
-# 🟦 4. Key ECS Concepts
+# 📦 5. Key ECS Concepts
 
-## 🔹 Task Definition
+### ▶ Task Definition
 
-A JSON blueprint describing:
+A JSON template describing:
 
 * Container images
-* CPU & Memory allocations
-* Ports
+* CPU/memory
+* Network ports
 * Volumes
-* Startup commands
+* Commands to run
 
-## 🔹 Task
+### ▶ Task
 
 A running instance of a task definition.
 
-## 🔹 Service
+### ▶ Service
 
-Ensures a **desired count** of tasks is always running. Supports:
+Manages how many tasks run and attaches them to load balancers.
 
-* Auto-recovery of failed tasks
-* Rolling updates
-* Integration with load balancers
+### ▶ Cluster
 
-## 🔹 Cluster
+Group of EC2 or Fargate compute resources.
 
-A group of EC2 instances or Fargate capacity where ECS tasks run.
+### ▶ Launch Types
 
-## 🔹 Launch Types
-
-* **EC2:** Tasks run on your own EC2 nodes
-* **Fargate:** Serverless container compute
+* **EC2** → You manage EC2 instances
+* **Fargate** → Serverless containers
 
 ---
 
-# 🟦 5. Task 1: Create a Task Definition
+# 🧩 6. Task 1 — Create a Task Definition
 
-### Steps
+Open **ECS Console → Task Definitions → Create new task definition with JSON**.
 
-1. Open **Elastic Container Service** → Task Definitions
-2. Choose **Create new task definition (JSON)**
-3. Paste the provided JSON definition
-4. Create the task definition
-
-This task definition:
-
-* Runs two containers (`simple-app` and `busybox`)
-* Uses **httpd** as the web server
-* Uses **busybox** to dynamically write an HTML file
-* Shares a volume `my-vol` between both containers
-* Exposes port 80
-
-### Outcome
-
-✔ Task Definition created for the sample web application.
+Delete everything and paste this JSON:
 
 ---
 
-# 🟦 6. Task 2: Create a Service
+# 📜 **Task Definition (Original Version)**
 
-### Steps
+```json
+{
+  "family": "yourApp-demo",
+  "containerDefinitions": [
+    {
+      "volumesFrom": [],
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 80
+        }
+      ],
+      "command": null,
+      "environment": [],
+      "essential": true,
+      "entryPoint": null,
+      "links": [],
+      "mountPoints": [
+        {
+          "containerPath": "/usr/local/apache2/htdocs",
+          "sourceVolume": "my-vol",
+          "readOnly": null
+        }
+      ],
+      "memory": 300,
+      "name": "simple-app",
+      "cpu": 10,
+      "image": "httpd:2.4"
+    },
+    {
+      "volumesFrom": [
+        {
+          "readOnly": null,
+          "sourceContainer": "simple-app"
+        }
+      ],
+      "portMappings": [],
+      "command": [
+        "/bin/sh -c \"while true; do echo '<html> <head> <title>Amazon ECS Sample App</title> <style>body {margin-top: 40px; background-color: #333;} </style> </head><body> <div style=color:white;text-align:center> <h1>Amazon ECS Sample App</h1> <h2>Congratulations!</h2> <p>Your application is now running on a container in Amazon ECS.</p>' > top; /bin/date > date ; echo '</div></body></html>' > bottom; cat top date bottom > /usr/local/apache2/htdocs/index.html ; sleep 1; done\""
+      ],
+      "environment": [],
+      "essential": false,
+      "entryPoint": [
+        "sh",
+        "-c"
+      ],
+      "links": [],
+      "mountPoints": [],
+      "memory": 200,
+      "name": "busybox",
+      "cpu": 10,
+      "image": "busybox"
+    }
+  ],
+  "volumes": [
+    {
+      "host": {
+        "sourcePath": null
+      },
+      "name": "my-vol"
+    }
+  ]
+}
+```
 
-1. Open the Task Definition → **Deploy → Create Service**
-2. Use:
+✔ This creates two containers:
+
+* **simple-app (httpd)** → serves webpage
+* **busybox** → continuously regenerates HTML
+
+✔ Both containers share the same **volume** `/usr/local/apache2/htdocs`
+
+✔ Result: A web page that updates the time every second
+
+---
+
+# 🛠 7. Task 2 — Create an ECS Service
+
+Steps:
+
+1. Go to your Task Definition → **Deploy → Create Service**
+2. Set:
 
    * **Service name:** `myFirstService`
    * **Launch type:** EC2
-   * **Desired tasks:** 1
-3. Enable Load Balancing
+   * **Desired count:** 1
+3. Enable Load Balancer:
 
-   * Load Balancer: **MyLoadBalancer**
+   * NLB: **MyLoadBalancer**
    * Listener: **TCP:80**
-   * Target Group: **myTargetGroup**
+   * Target Group: `myTargetGroup`
 4. Create the service
 
-### After creation
+Open the load balancer DNS:
 
-* Go to the Load Balancer page
-* Copy NLB DNS name
-* Open it in a new tab
+```
+MyLoadBalancer-xxxx.elb.us-east-1.amazonaws.com
+```
 
-### Outcome
-
-✔ You see the sample app page served from ECS.
+You should see the running sample application.
 
 ---
 
-# 🟦 7. Task 3: Deploy a New Application Version
+# 🔄 8. Task 3 — Deploy a New Application Version
 
-You updated the app by creating a new revision of the task definition.
+You create a **new revision** of the task definition.
 
-### What changed?
+### Change: "Congratulations!" → "Thank You!"
 
-* The HTML message changed from **"Congratulations!"** to **"Thank You!"**
+---
 
-### Steps
+# 📜 **Task Definition (Updated Version)**
 
-1. Create a new **task definition revision** with updated content
-2. Go to ECS → Cluster → Service → **Update Service**
+```json
+{
+  "family": "yourApp-demo",
+  "containerDefinitions": [
+    {
+      "volumesFrom": [],
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 80
+        }
+      ],
+      "command": null,
+      "environment": [],
+      "essential": true,
+      "entryPoint": null,
+      "links": [],
+      "mountPoints": [
+        {
+          "containerPath": "/usr/local/apache2/htdocs",
+          "sourceVolume": "my-vol",
+          "readOnly": null
+        }
+      ],
+      "memory": 300,
+      "name": "simple-app",
+      "cpu": 10,
+      "image": "httpd:2.4"
+    },
+    {
+      "volumesFrom": [
+        {
+          "readOnly": null,
+          "sourceContainer": "simple-app"
+        }
+      ],
+      "portMappings": [],
+      "command": [
+        "/bin/sh -c \"while true; do echo '<html> <head> <title>Amazon ECS Sample App</title> <style>body {margin-top: 40px; background-color: #333;} </style> </head><body> <div style=color:white;text-align:center> <h1>Amazon ECS Sample App</h1> <h2>Thank You!</h2> <p>Your application is now running on a container in Amazon ECS.</p>' > top; /bin/date > date ; echo '</div></body></html>' > bottom; cat top date bottom > /usr/local/apache2/htdocs/index.html ; sleep 1; done\""
+      ],
+      "environment": [],
+      "essential": false,
+      "entryPoint": [
+        "sh",
+        "-c"
+      ],
+      "links": [],
+      "mountPoints": [],
+      "memory": 200,
+      "name": "busybox",
+      "cpu": 10,
+      "image": "busybox"
+    }
+  ],
+  "volumes": [
+    {
+      "host": {
+        "sourcePath": null
+      },
+      "name": "my-vol"
+    }
+  ]
+}
+```
+
+### Update Service Steps:
+
+1. ECS → Cluster → `myFirstService`
+2. Click **Update Service**
 3. Select the **latest revision**
-4. ECS performs a **rolling deployment**:
+4. ECS performs a **rolling update**:
 
-   * Starts new task
-   * Stops old task
+   * Runs new tasks
+   * Stops old tasks
    * Ensures no downtime
 
-### Outcome
-
-✔ Application updated to show **Thank You!** without downtime.
+Refresh the load balancer → You now see **Thank You!**
 
 ---
 
-# 🟦 8. Task 4: Scale the Service
+# 📈 9. Task 4 — Scale the Service
 
-### Steps
+Steps:
 
-1. Open the service → **Update Service**
-2. Set **Desired tasks = 2**
-3. ECS launches a second task
+1. ECS → Clusters → **myFirstService**
+2. Update Service → **Desired tasks = 2**
 
-### Outcome
+ECS scheduler:
 
-✔ Service capacity increased → Now running **2 tasks** for better availability.
+* Starts a second container
+* Balances traffic via NLB
+
+✔ Service now runs **2 tasks** for higher availability
 
 ---
 
-# 🟦 9. Task 5: Review CloudFormation Template (Optional)
+# 📄 10. Task 5 — Review CloudFormation Template (Optional)
 
-You reviewed how AWS CloudFormation was used to create:
+CloudFormation created:
 
 * ECS Cluster
 * EC2 Auto Scaling Group
-* VPC components
 * Load Balancer
+* IAM roles
+* Networking
 
-### Why this matters:
-
-CloudFormation = **Infrastructure as Code (IaC)**
-Helps automate ECS deployments in real environments.
-
----
-
-# 🟦 10. Final Outcomes
-
-You successfully:
-
-✔ Created an ECS Task Definition
-✔ Deployed a service to ECS
-✔ Updated your application using a new revision
-✔ Performed rolling deployments with zero downtime
-✔ Scaled a service from 1 to 2 running tasks
-✔ Reviewed automated infrastructure provisioned via CloudFormation
-
-This lab gives a complete introduction to **container orchestration using Amazon ECS**.
+This demonstrates **Infrastructure as Code (IaC)** best practices.
 
 ---
 
-# 🟦 11. Additional Resources
+# 🏁 11. Final Results
 
-* Amazon ECS Documentation
-* ECS Terminology & Components
-* Docker Official Docs
+You successfully learned:
+
+* ✔ Creating ECS task definitions
+* ✔ Deploying ECS services
+* ✔ Exposing containers via NLB
+* ✔ Updating apps using new revisions
+* ✔ Rolling deployments
+* ✔ Scaling ECS services
+* ✔ CloudFormation infrastructure review
+
+This completes your ECS foundational learning.
+
+---
+
+# 📚 12. Additional Resources
+
+* Amazon ECS Docs
 * ECS Task Definition Reference
-* ECS Service Scheduler Concepts
-* AWS CloudFormation Documentation
+* ECS Service Scheduler
+* Docker Docs
+* CloudFormation Docs
 
 ---
 
-# ✅ End of README
-
-This README gives a structured, beginner-friendly, and complete understanding of your ECS lab. Let me know if you'd like:
-
-* A shorter summary
-* A diagram version
-* Interview questions on ECS
-* A cheat sheet version
